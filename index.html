@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100 antialiased">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Breakdown Maintenance Implementation Highway</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font Inter & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        p1: {
+                            DEFAULT: '#10b981', // Emerald
+                            soft: 'rgba(16, 185, 129, 0.15)',
+                            border: 'rgba(16, 185, 129, 0.3)',
+                            glow: 'rgba(16, 185, 129, 0.4)'
+                        },
+                        p2: {
+                            DEFAULT: '#3b82f6', // Blue
+                            soft: 'rgba(59, 130, 246, 0.15)',
+                            border: 'rgba(59, 130, 246, 0.3)',
+                            glow: 'rgba(59, 130, 246, 0.4)'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #090d16; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #334155; }
+        
+        /* Road lane animation */
+        .road-dash {
+            stroke-dasharray: 10 10;
+            animation: dash 25s linear infinite;
+        }
+        @keyframes dash {
+            to { stroke-dashoffset: -1000; }
+        }
+
+        /* Glassmorphism styling */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .node-pulse {
+            animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse-ring {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.3); opacity: 0.25; }
+        }
+
+        /* Smooth scroll behavior */
+        html { scroll-behavior: smooth; }
+    </style>
+</head>
+<body class="min-h-full flex flex-col font-sans bg-slate-950 text-slate-100">
+
+    <!-- TOP HEADER / CONTROL BAR -->
+    <header class="sticky top-0 z-50 glass-panel border-b border-slate-800/80 px-4 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4 shadow-xl">
+        <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-cyan-400 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-emerald-500/20">
+                <i class="fa-solid fa-route text-base"></i>
+            </div>
+            <div>
+                <h1 class="text-base lg:text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                    Breakdown Maintenance Implementation Highway
+                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/20 uppercase tracking-wider">Executive Roadmap</span>
+                </h1>
+                <p class="text-xs text-slate-400 hidden sm:block">Interactive Phase 1 (Digitalization) & Phase 2 (Centralized Response Booth) Deployment Pathway</p>
+            </div>
+        </div>
+
+        <!-- Global Action Controls -->
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+            <!-- Phase Filters -->
+            <div class="bg-slate-900/90 p-1 rounded-lg border border-slate-800/80 flex items-center gap-1 shadow-inner">
+                <button id="filter-all" onclick="setPhaseFilter('all')" class="px-3 py-1.5 rounded-md font-medium transition-all bg-emerald-500 text-slate-950 font-semibold shadow">All 10 Steps</button>
+                <button id="filter-p1" onclick="setPhaseFilter('p1')" class="px-3 py-1.5 rounded-md font-medium text-slate-400 hover:text-white transition-all flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                    Phase 1: Digitalize
+                </button>
+                <button id="filter-p2" onclick="setPhaseFilter('p2')" class="px-3 py-1.5 rounded-md font-medium text-slate-400 hover:text-white transition-all flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
+                    Phase 2: Response Booth
+                </button>
+            </div>
+
+            <div class="h-5 w-px bg-slate-800 hidden md:block"></div>
+
+            <!-- Global Expand / Collapse All -->
+            <div class="flex items-center gap-1">
+                <button onclick="toggleExpandAll(true)" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-angles-down text-emerald-400 text-[10px]"></i>
+                    <span>Expand All</span>
+                </button>
+                <button onclick="toggleExpandAll(false)" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-angles-up text-emerald-400 text-[10px]"></i>
+                    <span>Collapse All</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-6 space-y-8">
+
+        <!-- SECTION 1: INTERACTIVE HIGHWAY VISUALIZATION (SVG) -->
+        <section class="glass-panel rounded-2xl p-4 lg:p-6 border border-slate-800/80 shadow-2xl relative overflow-hidden">
+            <!-- Header overlay -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                <div class="flex items-center gap-2">
+                    <span class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs">
+                        <i class="fa-solid fa-map-location-dot"></i>
+                    </span>
+                    <h2 class="text-sm lg:text-base font-bold text-white tracking-tight">
+                        Implementation Highway Visual Map
+                    </h2>
+                    <span class="text-xs text-slate-400 hidden lg:inline-block">&bull; Click any milestone pin to view internal sub-steps</span>
+                </div>
+
+                <!-- Phase Legend -->
+                <div class="flex items-center gap-4 text-xs font-medium">
+                    <div class="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-900/80 border border-slate-800">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span>
+                        <span class="text-slate-300">Phase 01: Digital Management</span>
+                    </div>
+                    <div class="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-900/80 border border-slate-800">
+                        <span class="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50"></span>
+                        <span class="text-slate-300">Phase 02: Response Booth</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SVG ROADMAP CANVAS -->
+            <div class="relative w-full overflow-x-auto bg-slate-950/90 rounded-xl p-2 lg:p-3 border border-slate-800/80 min-w-[760px] shadow-inner">
+                <svg id="highway-svg" viewBox="0 0 1000 360" class="w-full h-auto drop-shadow-2xl" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <!-- Grid Background Pattern -->
+                        <pattern id="grid-pattern" width="40" height="40" patternUnits="userSpaceOnUse">
+                            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5" opacity="0.3"/>
+                        </pattern>
+                        <!-- Phase 1 Soft Gradient Filter -->
+                        <linearGradient id="p1-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#10b981" stop-opacity="0.8"/>
+                            <stop offset="100%" stop-color="#059669" stop-opacity="0.8"/>
+                        </linearGradient>
+                        <!-- Phase 2 Soft Gradient Filter -->
+                        <linearGradient id="p2-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.8"/>
+                            <stop offset="100%" stop-color="#2563eb" stop-opacity="0.8"/>
+                        </linearGradient>
+                    </defs>
+
+                    <!-- Background Grid -->
+                    <rect width="1000" height="360" fill="url(#grid-pattern)" rx="10"/>
+
+                    <!-- Phase 1 & 2 Visual Zone Backgrounds -->
+                    <rect x="20" y="20" width="460" height="320" fill="#10b981" fill-opacity="0.02" rx="12" stroke="#10b981" stroke-opacity="0.08" stroke-dasharray="4 4"/>
+                    <text x="35" y="42" fill="#10b981" font-size="10" font-weight="700" letter-spacing="1" opacity="0.6">PHASE 01: DIGITALIZATION ZONE</text>
+
+                    <rect x="500" y="20" width="480" height="320" fill="#3b82f6" fill-opacity="0.02" rx="12" stroke="#3b82f6" stroke-opacity="0.08" stroke-dasharray="4 4"/>
+                    <text x="515" y="42" fill="#3b82f6" font-size="10" font-weight="700" letter-spacing="1" opacity="0.6">PHASE 02: RESPONSE BOOTH ZONE</text>
+
+                    <!-- Highway Outer Base Layer -->
+                    <path d="M 50 180 C 150 50, 250 50, 350 180 C 450 310, 550 310, 650 180 C 750 50, 850 50, 950 180" 
+                          fill="none" stroke="#0f172a" stroke-width="38" stroke-linecap="round"/>
+
+                    <!-- Highway Asphalt Layer -->
+                    <path d="M 50 180 C 150 50, 250 50, 350 180 C 450 310, 550 310, 650 180 C 750 50, 850 50, 950 180" 
+                          fill="none" stroke="#1e293b" stroke-width="28" stroke-linecap="round"/>
+
+                    <!-- Phase 1 Color Accent Line -->
+                    <path d="M 50 180 C 150 50, 250 50, 350 180 C 425 277, 470 277, 470 230" 
+                          fill="none" stroke="#10b981" stroke-width="3.5" stroke-opacity="0.4" stroke-linecap="round"/>
+
+                    <!-- Phase 2 Color Accent Line -->
+                    <path d="M 470 230 C 470 180, 550 310, 650 180 C 750 50, 850 50, 950 180" 
+                          fill="none" stroke="#3b82f6" stroke-width="3.5" stroke-opacity="0.4" stroke-linecap="round"/>
+
+                    <!-- Center Dash Animated Lane Line -->
+                    <path d="M 50 180 C 150 50, 250 50, 350 180 C 450 310, 550 310, 650 180 C 750 50, 850 50, 950 180" 
+                          fill="none" stroke="#f59e0b" stroke-width="2" class="road-dash" stroke-linecap="round"/>
+
+                    <!-- Animated Position Vehicle Group -->
+                    <g id="vehicle-marker" class="transition-all duration-700 ease-out" transform="translate(60, 170)">
+                        <circle r="14" fill="#10b981" opacity="0.25" class="animate-ping"/>
+                        <circle r="12" fill="#10b981" stroke="#ffffff" stroke-width="2"/>
+                        <foreignObject x="-8" y="-8" width="16" height="16">
+                            <div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full flex items-center justify-center text-slate-950 font-black text-[10px]">
+                                <i class="fa-solid fa-truck-fast"></i>
+                            </div>
+                        </foreignObject>
+                    </g>
+
+                    <!-- STEP MILESTONE NODES -->
+                    <!-- Step 1 -->
+                    <g class="cursor-pointer group" onclick="focusStep(1)" transform="translate(60, 170)">
+                        <circle r="13" fill="#090d16" stroke="#10b981" stroke-width="2.5" class="group-hover:scale-125 transition-transform"/>
+                        <text x="0" y="4" text-anchor="middle" fill="#10b981" font-size="10" font-weight="bold" font-family="JetBrains Mono">01</text>
+                        <text x="0" y="30" text-anchor="middle" fill="#cbd5e1" font-size="9" font-weight="600">Complaint Reg.</text>
+                    </g>
+
+                    <!-- Step 2 -->
+                    <g class="cursor-pointer group" onclick="focusStep(2)" transform="translate(135, 95)">
+                        <circle r="13" fill="#090d16" stroke="#10b981" stroke-width="2.5" class="group-hover:scale-125 transition-transform"/>
+                        <text x="0" y="4" text-anchor="middle" fill="#10b981" font-size="10" font-weight="bold" font-family="JetBrains Mono">02</text>
+                        <text x="0" y="-20" text-anchor="middle" fill="#cbd5e1" font-size="9" font-weight="600">Digital Acknowledge</text>
+                    </g>
+
+                    <!-- Step 3 -->
+                    <g class="cursor-pointer group" onclick="focusStep(3)" transform="translate(225, 75)">
+                        <circle r="13" fill="#090d16" stroke="#10b981" stroke-width="2.5" class="group-hover:scale-125 transition-transform"/>
+                        <text x="0" y="4" text-anchor="middle" fill="#10b981" font-size="10" font-weight="bold" font-family="JetBrains Mono">03</text>
+                        <text x="0" y="-20" text-anchor="middle" fill="#cbd5e1" font-size="9" font-weight="600">Troubleshoot & Repair</text>
+                    </g>
+
+                    <!-- Step 4 -->
+                    <g class="cursor-pointer group" onclick="focusStep(4)" transform="translate(315, 135)">
+                        <circle r="13" fill="#090d16" stroke="#10b981" stroke-width="2.5" class="group-hover:scale-125 transition-transform"/>
+                        <text x="0" y="4" text-anchor="middle" fill="#10b981" font-size="10" font-weight="bold" font-family="JetBrains Mono">04</text>
+                        <text x="0" y="30" text-anchor="middle" fill="#cbd5e1" font-size="9" font-weight="600">Completion Log</text>
+                    </g>
+
+                    <!-- Step 5 -->
+                    <g class="cursor-pointer group" onclick="focusStep(5)" transform="translate(410, 245)">
+                        <circle r="13" fill="#090d16" stroke="#10b981" stroke-width="2.5" class="group-hover:scale-125 transition-transform"/>
+                        <text x="0" y="4" text-anchor="middle" fill="#10b981" font-size="10" font-weight="bold" font-family="JetBrains Mono">05</text>
+                        <text x="0" y="30" text-anchor="middle" fill="#cbd5e1" font-size="9" font-weight="600">Verify & Close</text>
+                    </g>
+
+                    <!-- Step 6 -->
+                    <g class="cursor-pointer group" onclick="focusStep(6)" transform="translate(500, 280)">
+                        <circle r="13" fill="#090d16" stroke="#3b82f6" stroke-width="2.5" class="group-hover:scale-125 transition-transform"/>
+                        <text x="0" y="4" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="bold" font-family="JetBrains Mono">06</text>
+                        <text x="0" y="30" text-anchor="middle" fill="#cbd5e1" font-size="9" font-weight="600">Service Booth Desk</text>
+                    </g>
+
+                    <!-- Step 7 -->
+                    <g class="cursor-pointer group" onclick="focusStep(7)" transform="translate(590, 250)">
+                        <circle r="13" fill="#090d16" stroke="#3b82f6" stroke-width="2.5" class="group-hover:scale-125 transition-transform"/>
+                        <text x="0" y="4" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="bold" font-family="JetBrains Mono">07</text>
+                        <text x="0" y="30" text-anchor="middle" fill="#cbd5e1" font-size="9" font-weight="600">Urgency Triage</text>
+                    </g>
+
+                    <!-- Step 8 -->
+                    <g class="cursor-pointer group" onclick="focusStep(8)" transform="translate(685, 135)">
+                        <circle r="13" fill="#090d16" stroke="#3b82f6" stroke-width="2.5" class="group-hover:scale-125 transition-transform"/>
+                        <text x="0" y="4" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="bold" font-family="JetBrains Mono">08</text>
+                        <text x="0" y="-20" text-anchor="middle" fill="#cbd5e1" font-size="9" font-weight="600">Structured Tech Dispatch</text>
+                    </g>
+
+                    <!-- Step 9 -->
+                    <g class="cursor-pointer group" onclick="focusStep(9)" transform="translate(790, 75)">
+                        <circle r="13" fill="#090d16" stroke="#3b82f6" stroke-width="2.5" class="group-hover:scale-125 transition-transform"/>
+                        <text x="0" y="4" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="bold" font-family="JetBrains Mono">09</text>
+                        <text x="0" y="-20" text-anchor="middle" fill="#cbd5e1" font-size="9" font-weight="600">SLA Escalation</text>
+                    </g>
+
+                    <!-- Step 10 -->
+                    <g class="cursor-pointer group" onclick="focusStep(10)" transform="translate(915, 170)">
+                        <circle r="13" fill="#090d16" stroke="#3b82f6" stroke-width="2.5" class="group-hover:scale-125 transition-transform"/>
+                        <text x="0" y="4" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="bold" font-family="JetBrains Mono">10</text>
+                        <text x="0" y="30" text-anchor="middle" fill="#cbd5e1" font-size="9" font-weight="600">Analytics Review</text>
+                    </g>
+                </svg>
+            </div>
+        </section>
+
+        <!-- SECTION 2: ACCORDION STEP CARDS (WITH INTERNAL SUB-STEPS) -->
+        <section class="space-y-4">
+            <div class="flex items-center justify-between px-1">
+                <div class="flex items-center gap-2">
+                    <span class="p-1 rounded bg-slate-800 text-slate-300 text-xs">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </span>
+                    <h2 class="text-sm lg:text-base font-bold text-white">
+                        Implementation Execution Steps
+                    </h2>
+                </div>
+                <span class="text-xs text-slate-400" id="step-counter-text">Showing 10 Steps</span>
+            </div>
+
+            <!-- STEP ACCORDION CONTAINER -->
+            <div id="steps-container" class="space-y-3">
+                <!-- Dynamically Rendered via JavaScript -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="mt-12 border-t border-slate-800/80 bg-slate-950 py-5 text-center text-xs text-slate-500">
+        <p>Breakdown Maintenance Management System &bull; Phase 1 & Phase 2 Standard Implementation Framework</p>
+    </footer>
+
+    <!-- JAVASCRIPT APPLICATION LOGIC -->
+    <script>
+        // DATA STRUCTURE: 10 Core Steps with Internal Sub-Steps
+        const stepsData = [
+            {
+                id: 1,
+                phase: 'p1',
+                phaseTag: 'Phase 01',
+                title: 'Complaint Registration & Digital Logging',
+                summary: 'Digitize breakdown reporting on the production floor via QR code scanning or shopfloor tablet interface.',
+                primaryRole: 'Line Leader / Machine Operator',
+                targetKPI: 'Registration Time < 2 Mins',
+                icon: 'fa-qrcode',
+                x: 60, y: 170,
+                subSteps: [
+                    { id: '1.1', title: 'Scan Machine QR Code', detail: 'Operator scans the machine-mounted rugged QR code using line tablet or mobile terminal.' },
+                    { id: '1.2', title: 'Select Breakdown Category', detail: 'Choose failure mode (Electrical, Mechanical, Hydraulic, Tooling) and select symptom error code.' },
+                    { id: '1.3', title: 'Attach Visual Evidence', detail: 'Capture and attach photo or 5-second video clip of physical fault.' },
+                    { id: '1.4', title: 'Auto-Generate Ticket', detail: 'System generates unique Ticket ID, timestamps event, and triggers instant maintenance notification.' }
+                ],
+                inputs: ['Machine ID', 'Operator ID', 'Error Code', 'Photo Snapshot'],
+                outputs: ['Timestamped Digital Ticket ID', 'Instant Push Alert']
+            },
+            {
+                id: 2,
+                phase: 'p1',
+                phaseTag: 'Phase 01',
+                title: 'Digital Acknowledgment & Duty Dispatch',
+                summary: 'Automated notification dispatch alerts on-duty technicians via mobile devices, smartwatches, and central boards.',
+                primaryRole: 'Shift Maintenance Tech / Supervisor',
+                targetKPI: 'Ack. Time < 3 Mins',
+                icon: 'fa-bell',
+                x: 135, y: 95,
+                subSteps: [
+                    { id: '2.1', title: 'Alert Routing', detail: 'System checks zone assignment and skill matrix to route ticket to appropriate responder.' },
+                    { id: '2.2', title: 'Mobile/Watch Acceptance', detail: 'Technician taps "Acknowledge" on wearable smartwatch or handheld app.' },
+                    { id: '2.3', title: 'Status Broadcast', detail: 'Line terminal displays real-time status: "Technician En Route" with calculated ETA.' },
+                    { id: '2.4', title: 'SLA Timer Activation', detail: 'Response SLA clock begins countdown automatically upon acknowledgment.' }
+                ],
+                inputs: ['Digital Ticket Alert', 'Technician Duty Roster', 'Skill Matrix'],
+                outputs: ['Acceptance Timestamp', 'Live SLA Countdown']
+            },
+            {
+                id: 3,
+                phase: 'p1',
+                phaseTag: 'Phase 01',
+                title: 'On-Site Troubleshooting & Physical Repair',
+                summary: 'Technician arrives at machine, executes safety isolation (LOTO), diagnoses root cause, and performs repair.',
+                primaryRole: 'Maintenance Technician',
+                targetKPI: 'MTTR Reduction -25%',
+                icon: 'fa-screwdriver-wrench',
+                x: 225, y: 75,
+                subSteps: [
+                    { id: '3.1', title: 'Safety Isolation (LOTO)', detail: 'Apply Lockout/Tagout procedures prior to opening electrical panels or mechanical guards.' },
+                    { id: '3.2', title: 'Historical Fault Query', detail: 'Access machine historical failure logs on tablet to review past solutions for similar fault code.' },
+                    { id: '3.3', title: 'Spare Part Reservation', detail: 'Reserve required spare parts directly from digital inventory via mobile ticket.' },
+                    { id: '3.4', title: 'Execute Maintenance', detail: 'Perform component replacement, alignment, or wiring repair as specified in digital SOP.' }
+                ],
+                inputs: ['Safety LOTO Checklist', 'Digital SOP Manual', 'Spare Parts Catalog'],
+                outputs: ['Fault Diagnostic Log', 'Inventory Deduction Record']
+            },
+            {
+                id: 4,
+                phase: 'p1',
+                phaseTag: 'Phase 01',
+                title: 'Completion Logging & Cause Categorization',
+                summary: 'Document exact repair steps, root cause category (5-Why), and component parts used prior to machine handback.',
+                primaryRole: 'Maintenance Tech & Supervisor',
+                targetKPI: '100% Cause Capture',
+                icon: 'fa-clipboard-check',
+                x: 315, y: 135,
+                subSteps: [
+                    { id: '4.1', title: 'Log Repair Duration', detail: 'Record actual hands-on repair finish time and log exact failure mode.' },
+                    { id: '4.2', title: 'Perform 5-Why Analysis', detail: 'Complete mandatory 5-Why root cause entry for breakdowns exceeding 30 minutes downtime.' },
+                    { id: '4.3', title: 'Attach Post-Repair Photo', detail: 'Upload photo of replaced part and clean workspace.' },
+                    { id: '4.4', title: 'Initiate Trial Request', detail: 'Send digital request to Line Leader for operational trial run.' }
+                ],
+                inputs: ['Repair Work Notes', '5-Why Breakdown Form', 'Part Serial Numbers'],
+                outputs: ['Completed Work Log', 'Root Cause Data Entry']
+            },
+            {
+                id: 5,
+                phase: 'p1',
+                phaseTag: 'Phase 01',
+                title: 'Operational Verification & Line Leader Closure',
+                summary: 'Line leader inspects machine operation, verifies test part quality, and digitally signs off to close complaint.',
+                primaryRole: 'Production Line Leader',
+                targetKPI: 'Zero Repeat Faults < 24h',
+                icon: 'fa-circle-check',
+                x: 410, y: 245,
+                subSteps: [
+                    { id: '5.1', title: 'Quality Sample Test', detail: 'Run test batch of 5 consecutive production parts to confirm quality tolerances.' },
+                    { id: '5.2', title: 'Safety Interlock Check', detail: 'Verify all physical safety guards, light curtains, and emergency stops are restored.' },
+                    { id: '5.3', title: 'Digital Sign-Off', detail: 'Line leader inputs PIN or digital signature to confirm machine operational handback.' },
+                    { id: '5.4', title: 'Ticket Archive & Metric Lock', detail: 'System locks total downtime duration and updates line MTTR/MTBF calculations.' }
+                ],
+                inputs: ['Test Batch Quality Inspection', 'Safety Guard Checklist'],
+                outputs: ['Closed Ticket Record', 'Locked MTTR/MTBF Timestamps']
+            },
+            {
+                id: 6,
+                phase: 'p2',
+                phaseTag: 'Phase 02',
+                title: 'Centralized Response Booth Setup',
+                summary: 'Establish a physical and digital central service counter on the shopfloor for unified dispatch and coordination.',
+                primaryRole: 'Plant Maintenance Manager',
+                targetKPI: 'Central Control Hub',
+                icon: 'fa-building-shield',
+                x: 500, y: 280,
+                subSteps: [
+                    { id: '6.1', title: 'Physical Booth Positioning', detail: 'Set up central booth at strategic shopfloor crossroads equidistant from critical production lines.' },
+                    { id: '6.2', title: 'Visual Kanban Dashboard', detail: 'Install large live display screens showing active breakdowns, response status, and tech locations.' },
+                    { id: '6.3', title: 'Pre-Staged Fast Spares', detail: 'Stock high-frequency replacement parts and pre-configured tool carts inside booth.' },
+                    { id: '6.4', title: 'Assign Shift Dispatcher', detail: 'Designate a Shift Coordinator to manage incoming complaints and technician workload.' }
+                ],
+                inputs: ['Shopfloor Layout Matrix', 'Fast-Mover Inventory Data'],
+                outputs: ['Centralized Command Point', 'Live Visual Kanban Board']
+            },
+            {
+                id: 7,
+                phase: 'p2',
+                phaseTag: 'Phase 02',
+                title: 'Urgency Prioritization & Triage Matrix',
+                summary: 'Categorize incoming complaints based on safety risk, line criticality, and production bottleneck impact.',
+                primaryRole: 'Service Booth Dispatcher',
+                targetKPI: 'Zero Bottleneck Stoppages',
+                icon: 'fa-filter-circle-dollar',
+                x: 590, y: 250,
+                subSteps: [
+                    { id: '7.1', title: 'P1 - Critical Bottleneck', detail: 'Main line stoppage: Immediate multi-technician dispatch with top priority.' },
+                    { id: '7.2', title: 'P2 - High Priority', detail: 'Secondary line down with impending buffer depletion or quality/safety risk.' },
+                    { id: '7.3', title: 'P3 - Medium/Low', detail: 'Minor equipment glitch on line with sufficient buffer stock available.' },
+                    { id: '7.4', title: 'Dynamic Re-Routing', detail: 'System automatically prompts tech re-allocation if higher-priority P1 fault occurs.' }
+                ],
+                inputs: ['Production Buffer Levels', 'Line Criticality Index'],
+                outputs: ['Prioritized Ticket Queue', 'Dynamic Resource Allocation']
+            },
+            {
+                id: 8,
+                phase: 'p2',
+                phaseTag: 'Phase 02',
+                title: 'Structured Technician Mobilization',
+                summary: 'Deploy specialized technicians equipped with pre-staged diagnostic kits directly from the central booth.',
+                primaryRole: 'Shift Dispatcher & Technicians',
+                targetKPI: 'Dispatch Time < 2 Mins',
+                icon: 'fa-truck-fast',
+                x: 685, y: 135,
+                subSteps: [
+                    { id: '8.1', title: 'Specialist Match', detail: 'Match required trade skill (PLC, Pneumatics, Mechanical) to technician availability.' },
+                    { id: '8.2', title: 'Pre-Packaged Kit Handout', detail: 'Issue pre-assembled diagnostic tool cart and spare parts directly from service booth.' },
+                    { id: '8.3', title: 'Shopfloor Beacon Tracking', detail: 'Monitor technician transit and arrival using shopfloor Bluetooth beacon signals.' },
+                    { id: '8.4', title: 'Remote AR Support Link', detail: 'Connect on-site technician with senior specialist via AR headset if complex fault arises.' }
+                ],
+                inputs: ['Technician Skill Matrix', 'Pre-Packaged Tool Carts'],
+                outputs: ['Mobilized Specialist', 'Asset Location Tracking']
+            },
+            {
+                id: 9,
+                phase: 'p2',
+                phaseTag: 'Phase 02',
+                title: 'SLA Response Targets & Escalation Protocol',
+                summary: 'Enforce response time expectations and trigger automatic supervisor alerts if repair delays occur.',
+                primaryRole: 'Maintenance Head & Supervisors',
+                targetKPI: '100% SLA Compliance',
+                icon: 'fa-triangle-exclamation',
+                x: 790, y: 75,
+                subSteps: [
+                    { id: '9.1', title: 'Level 1 Escalation (15m)', detail: 'Alert Maintenance Supervisor if technician has not acknowledged or arrived on site.' },
+                    { id: '9.2', title: 'Level 2 Escalation (45m)', detail: 'Notify Plant Maintenance Manager and initiate secondary specialist dispatch.' },
+                    { id: '9.3', title: 'Level 3 Escalation (120m)', detail: 'Escalate to Plant Operations Director and request OEM external engineer support.' },
+                    { id: '9.4', title: 'Emergency Booth Huddle', detail: 'Convene cross-functional emergency review at Service Booth for prolonged stalls.' }
+                ],
+                inputs: ['Real-Time SLA Timers', 'Management Escalation Matrix'],
+                outputs: ['Automated Manager Notifications', 'External Support Requests']
+            },
+            {
+                id: 10,
+                phase: 'p2',
+                phaseTag: 'Phase 02',
+                title: 'Performance Analytics & Continuous Improvement',
+                summary: 'Review breakdown trends, MTTR, MTBF, and repeat faults to refine PM calendar and operational decisions.',
+                primaryRole: 'Plant Reliability Engineer',
+                targetKPI: 'MTBF Increase +30%',
+                icon: 'fa-chart-pie',
+                x: 915, y: 170,
+                subSteps: [
+                    { id: '10.1', title: 'Weekly Pareto Review', detail: 'Analyze top 5 recurring breakdown failure modes using CMMS data dashboards.' },
+                    { id: '10.2', title: 'Update PM Calendar', detail: 'Convert high-frequency breakdown causes into scheduled Preventive Maintenance tasks.' },
+                    { id: '10.3', title: 'Spare Parts Min/Max Calibration', detail: 'Adjust safety stock levels based on actual consumption data from tickets.' },
+                    { id: '10.4', title: 'Monthly Reliability Scorecard', detail: 'Publish plant-wide OEE, MTTR, MTBF, and breakdown cost reduction metrics.' }
+                ],
+                inputs: ['CMMS Ticket Database', 'Pareto Breakdown Analytics'],
+                outputs: ['Refined PM Calendar', 'Monthly Reliability Scorecard']
+            }
+        ];
+
+        let activeStepId = 1;
+        let currentFilter = 'all';
+        let expandedStateMap = { 1: true }; // Step 1 open by default
+
+        // INITIALIZATION
+        window.onload = function() {
+            renderAccordionCards();
+            focusStep(1);
+        };
+
+        // RENDER ACCORDION CARDS
+        function renderAccordionCards() {
+            const container = document.getElementById('steps-container');
+            container.innerHTML = '';
+
+            const filteredSteps = stepsData.filter(step => {
+                if (currentFilter === 'all') return true;
+                return step.phase === currentFilter;
+            });
+
+            // Update Counter Text
+            document.getElementById('step-counter-text').innerText = `Showing ${filteredSteps.length} of 10 Steps`;
+
+            filteredSteps.forEach(step => {
+                const isExpanded = expandedStateMap[step.id] || false;
+                const isActive = step.id === activeStepId;
+                const isP1 = step.phase === 'p1';
+
+                // Color Themes
+                const themeBorder = isP1 ? 'border-emerald-500/30' : 'border-blue-500/30';
+                const themeActiveBorder = isP1 ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-blue-500 ring-2 ring-blue-500/20';
+                const tagBg = isP1 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-blue-500/10 text-blue-400 border-blue-500/30';
+                const numBg = isP1 ? 'bg-emerald-500 text-slate-950' : 'bg-blue-500 text-slate-950';
+
+                const cardHtml = `
+                    <div id="step-card-${step.id}" class="glass-panel rounded-xl border ${isActive ? themeActiveBorder : 'border-slate-800/90'} transition-all duration-300">
+                        
+                        <!-- COLLAPSED / HEADER BAR -->
+                        <div onclick="toggleStepAccordion(${step.id})" class="p-3.5 lg:p-4 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-slate-900/60 transition rounded-xl">
+                            
+                            <div class="flex items-start md:items-center space-x-3">
+                                <!-- Step Number Badge -->
+                                <div class="w-8 h-8 rounded-lg ${isActive ? numBg : 'bg-slate-800 text-slate-300'} font-mono font-bold text-xs flex items-center justify-center shrink-0 shadow">
+                                    0${step.id}
+                                </div>
+
+                                <div>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <h3 class="text-sm lg:text-base font-bold text-white tracking-tight">${step.title}</h3>
+                                        <span class="text-[10px] px-2 py-0.5 rounded-full border ${tagBg} font-semibold">${step.phaseTag}</span>
+                                    </div>
+                                    <p class="text-xs text-slate-400 mt-0.5 line-clamp-1">${step.summary}</p>
+                                </div>
+                            </div>
+
+                            <!-- Right Quick Badges -->
+                            <div class="flex items-center justify-between md:justify-end gap-4 border-t md:border-t-0 border-slate-800/80 pt-2 md:pt-0 text-xs">
+                                <div class="hidden sm:block text-left md:text-right">
+                                    <span class="text-[10px] text-slate-500 block uppercase font-semibold">Primary Role</span>
+                                    <span class="text-slate-300 text-xs font-medium">${step.primaryRole}</span>
+                                </div>
+                                <div class="text-left md:text-right">
+                                    <span class="text-[10px] text-slate-500 block uppercase font-semibold">Target Metric</span>
+                                    <span class="text-xs ${isP1 ? 'text-emerald-400' : 'text-blue-400'} font-mono font-bold">${step.targetKPI}</span>
+                                </div>
+                                <div class="w-7 h-7 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition">
+                                    <i class="fa-solid ${isExpanded ? 'fa-chevron-up' : 'fa-chevron-down'} text-[11px]"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- EXPANDED DETAILED INTERNAL SUB-STEPS -->
+                        ${isExpanded ? `
+                            <div class="px-4 pb-5 pt-3 border-t border-slate-800/80 text-xs space-y-4 bg-slate-950/40 rounded-b-xl">
+                                
+                                <!-- INTERNAL SUB-STEPS GRID -->
+                                <div>
+                                    <span class="text-[11px] font-bold text-slate-300 flex items-center gap-1.5 uppercase tracking-wider mb-2.5">
+                                        <i class="fa-solid fa-list-check ${isP1 ? 'text-emerald-400' : 'text-blue-400'}"></i>
+                                        Internal Actionable Sub-Steps
+                                    </span>
+                                    
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                                        ${step.subSteps.map(sub => `
+                                            <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800/80 hover:border-slate-700 transition space-y-1">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="font-mono font-bold text-xs ${isP1 ? 'text-emerald-400' : 'text-blue-400'}">Step ${sub.id}</span>
+                                                    <span class="text-[10px] text-slate-500 uppercase font-semibold">ActionItem</span>
+                                                </div>
+                                                <h4 class="font-semibold text-slate-200 text-xs">${sub.title}</h4>
+                                                <p class="text-slate-400 text-[11px] leading-relaxed">${sub.detail}</p>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+
+                                <!-- OPERATIONAL METADATA & INPUTS/OUTPUTS -->
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                                    <!-- Role Responsibility -->
+                                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-800/80">
+                                        <span class="text-[10px] text-slate-500 uppercase font-bold block mb-1">Responsibility</span>
+                                        <span class="text-slate-200 font-medium text-xs flex items-center gap-1.5">
+                                            <i class="fa-solid fa-user-gear text-slate-400 text-[11px]"></i>
+                                            ${step.primaryRole}
+                                        </span>
+                                    </div>
+
+                                    <!-- Key Inputs -->
+                                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-800/80">
+                                        <span class="text-[10px] text-slate-500 uppercase font-bold block mb-1">Required Inputs</span>
+                                        <div class="flex flex-wrap gap-1">
+                                            ${step.inputs.map(i => `<span class="px-2 py-0.5 bg-slate-800 text-slate-300 rounded text-[10px]">${i}</span>`).join('')}
+                                        </div>
+                                    </div>
+
+                                    <!-- Key Outputs -->
+                                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-800/80">
+                                        <span class="text-[10px] text-slate-500 uppercase font-bold block mb-1">Generated Outputs</span>
+                                        <div class="flex flex-wrap gap-1">
+                                            ${step.outputs.map(o => `<span class="px-2 py-0.5 ${isP1 ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-800/40' : 'bg-blue-950/60 text-blue-300 border border-blue-800/40'} rounded text-[10px]">${o}</span>`).join('')}
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', cardHtml);
+            });
+        }
+
+        // TOGGLE INDIVIDUAL ACCORDION
+        function toggleStepAccordion(id) {
+            expandedStateMap[id] = !expandedStateMap[id];
+            focusStep(id);
+            renderAccordionCards();
+        }
+
+        // GLOBAL EXPAND / COLLAPSE
+        function toggleExpandAll(expand) {
+            stepsData.forEach(s => expandedStateMap[s.id] = expand);
+            renderAccordionCards();
+        }
+
+        // FILTER PHASE STEPS
+        function setPhaseFilter(phase) {
+            currentFilter = phase;
+            
+            // Update filter buttons UI
+            ['all', 'p1', 'p2'].forEach(p => {
+                const btn = document.getElementById(`filter-${p}`);
+                if (!btn) return;
+                if (p === phase) {
+                    btn.className = 'px-3 py-1.5 rounded-md font-medium transition-all bg-emerald-500 text-slate-950 font-semibold shadow';
+                } else {
+                    btn.className = 'px-3 py-1.5 rounded-md font-medium text-slate-400 hover:text-white transition-all flex items-center gap-1.5';
+                }
+            });
+
+            renderAccordionCards();
+        }
+
+        // FOCUS STEP & MOVE VEHICLE MARKER ON HIGHWAY
+        function focusStep(id) {
+            activeStepId = id;
+            const step = stepsData.find(s => s.id === id);
+            if (!step) return;
+
+            // Move vehicle marker
+            const marker = document.getElementById('vehicle-marker');
+            if (marker) {
+                marker.setAttribute('transform', `translate(${step.x}, ${step.y})`);
+            }
+
+            renderAccordionCards();
+        }
+    </script>
+</body>
+</html>
